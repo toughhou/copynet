@@ -64,6 +64,9 @@ class EncoderDecoder(nn.Module):
 
         outputs, idxs = self.forward(input_variable, [len(input_seq)])
         idxs = idxs.data.view(-1)
+        ### TOUGH
+        idxs = idxs.numpy()
+
         eos_idx = list(idxs).index(2) if 2 in list(idxs) else len(idxs)
         output_string = seq_to_string(idxs[:eos_idx + 1], idx_to_tok, input_tokens=input_tokens)
 

@@ -29,7 +29,7 @@ def train(encoder_decoder: EncoderDecoder,
     global_step = 0
     loss_function = torch.nn.NLLLoss(ignore_index=0)
     optimizer = optim.Adam(encoder_decoder.parameters(), lr=lr)
-    model_path = './model/' + model_name + '/'
+    model_path = './chkpt/' + model_name + '/'
 
     for epoch, teacher_forcing in enumerate(teacher_forcing_schedule):
         print('epoch %i' % epoch, flush=True)
@@ -41,8 +41,8 @@ def train(encoder_decoder: EncoderDecoder,
             lengths = (input_idxs != 0).long().sum(dim=1)
             sorted_lengths, order = torch.sort(lengths, descending=True)
 
-            input_variable = Variable(input_idxs[order, :][:, :max(lengths)])
-            target_variable = Variable(target_idxs[order, :])
+            input_variable = Variable(input_idxs[order, :][:, :max(lengths)])   # (100, 16)
+            target_variable = Variable(target_idxs[order, :])   # (100, 200)
 
             optimizer.zero_grad()
             output_log_probs, output_seqs = encoder_decoder(input_variable,
@@ -116,16 +116,16 @@ def train(encoder_decoder: EncoderDecoder,
 
 def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, val_size, lr, decoder_type, vocab_limit,
          hidden_size, embedding_size, max_length, seed=42):
-    model_path = './model/' + model_name + '/'
+    model_path = './chkpt/' + model_name + '/'
 
     # TODO: Change logging to reflect loaded parameters
 
     print("training %s with use_cuda=%s, batch_size=%i" % (model_name, use_cuda, batch_size), flush=True)
     print("teacher_forcing_schedule=", teacher_forcing_schedule, flush=True)
-    print(
-        "keep_prob=%f, val_size=%f, lr=%f, decoder_type=%s, vocab_limit=%i, hidden_size=%i, embedding_size=%i, max_length=%i, seed=%i" % (
-            keep_prob, val_size, lr, decoder_type, vocab_limit, hidden_size, embedding_size, max_length, seed),
-        flush=True)
+    print("keep_prob=%f, val_size=%f, lr=%f, decoder_type=%s, vocab_limit=%i, "
+          "hidden_size=%i, embedding_size=%i, max_length=%i, seed=%i"
+          % (keep_prob, val_size, lr, decoder_type, vocab_limit, hidden_size,
+             embedding_size, max_length, seed), flush=True)
 
     if os.path.isdir(model_path):
 
@@ -192,7 +192,7 @@ def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parse training parameters')
-    parser.add_argument('model_name', type=str,
+    parser.add_argument('--model_name', type=str,
                         help='the name of a subdirectory of ./model/ that '
                              'contains encoder and decoder model files')
 
@@ -242,6 +242,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     writer = SummaryWriter('./logs/%s_%s' % (args.model_name, str(int(time.time()))))
+
     if args.scheduled_teacher_forcing:
         schedule = np.arange(1.0, 0.0, -1.0 / args.epochs)
     else:
