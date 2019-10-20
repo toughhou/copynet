@@ -17,7 +17,9 @@ class EncoderDecoder(nn.Module):
                                   hidden_size,
                                   embedding_size)
         self.decoder_type = decoder_type
+
         decoder_hidden_size = 2 * self.encoder.hidden_size
+
         if self.decoder_type == 'attn':
             self.decoder = AttentionDecoder(decoder_hidden_size,
                                             embedding_size,

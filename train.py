@@ -26,7 +26,6 @@ def train(encoder_decoder: EncoderDecoder,
           teacher_forcing_schedule,
           lr,
           max_length):
-
     global_step = 0
     loss_function = torch.nn.NLLLoss(ignore_index=0)
     optimizer = optim.Adam(encoder_decoder.parameters(), lr=lr)
@@ -66,7 +65,8 @@ def train(encoder_decoder: EncoderDecoder,
 
             batch_bleu_score = corpus_bleu(batch_targets, batch_outputs, smoothing_function=SmoothingFunction().method1)
 
-            if global_step < 10 or (global_step % 10 == 0 and global_step < 100) or (global_step % 100 == 0 and epoch < 2):
+            if global_step < 10 or (global_step % 10 == 0 and global_step < 100) or (
+                    global_step % 100 == 0 and epoch < 2):
                 input_string = "Amy, Please schedule a meeting with Marcos on Tuesday April 3rd. Adam Kleczewski"
                 output_string = encoder_decoder.get_response(input_string)
                 writer.add_text('schedule', output_string, global_step=global_step)
@@ -114,15 +114,18 @@ def train(encoder_decoder: EncoderDecoder,
         print('-' * 100, flush=True)
 
 
-def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, val_size, lr, decoder_type, vocab_limit, hidden_size, embedding_size, max_length, seed=42):
-
+def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, val_size, lr, decoder_type, vocab_limit,
+         hidden_size, embedding_size, max_length, seed=42):
     model_path = './model/' + model_name + '/'
 
     # TODO: Change logging to reflect loaded parameters
 
-    print("training %s with use_cuda=%s, batch_size=%i"% (model_name, use_cuda, batch_size), flush=True)
+    print("training %s with use_cuda=%s, batch_size=%i" % (model_name, use_cuda, batch_size), flush=True)
     print("teacher_forcing_schedule=", teacher_forcing_schedule, flush=True)
-    print("keep_prob=%f, val_size=%f, lr=%f, decoder_type=%s, vocab_limit=%i, hidden_size=%i, embedding_size=%i, max_length=%i, seed=%i" % (keep_prob, val_size, lr, decoder_type, vocab_limit, hidden_size, embedding_size, max_length, seed), flush=True)
+    print(
+        "keep_prob=%f, val_size=%f, lr=%f, decoder_type=%s, vocab_limit=%i, hidden_size=%i, embedding_size=%i, max_length=%i, seed=%i" % (
+            keep_prob, val_size, lr, decoder_type, vocab_limit, hidden_size, embedding_size, max_length, seed),
+        flush=True)
 
     if os.path.isdir(model_path):
 
@@ -134,13 +137,13 @@ def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, 
                                             use_cuda=use_cuda,
                                             is_val=False,
                                             val_size=val_size,
-                                            use_extended_vocab=(encoder_decoder.decoder_type=='copy'))
+                                            use_extended_vocab=(encoder_decoder.decoder_type == 'copy'))
 
         val_dataset = SequencePairDataset(lang=encoder_decoder.lang,
                                           use_cuda=use_cuda,
                                           is_val=True,
                                           val_size=val_size,
-                                          use_extended_vocab=(encoder_decoder.decoder_type=='copy'))
+                                          use_extended_vocab=(encoder_decoder.decoder_type == 'copy'))
 
     else:
         os.mkdir(model_path)
@@ -151,14 +154,14 @@ def main(model_name, use_cuda, batch_size, teacher_forcing_schedule, keep_prob, 
                                             is_val=False,
                                             val_size=val_size,
                                             seed=seed,
-                                            use_extended_vocab=(decoder_type=='copy'))
+                                            use_extended_vocab=(decoder_type == 'copy'))
 
         val_dataset = SequencePairDataset(lang=train_dataset.lang,
                                           use_cuda=use_cuda,
                                           is_val=True,
                                           val_size=val_size,
                                           seed=seed,
-                                          use_extended_vocab=(decoder_type=='copy'))
+                                          use_extended_vocab=(decoder_type == 'copy'))
 
         print("creating encoder-decoder model", flush=True)
         encoder_decoder = EncoderDecoder(train_dataset.lang,
@@ -196,7 +199,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=50,
                         help='the number of epochs to train')
 
-    parser.add_argument('--use_cuda', action='store_true',
+    parser.add_argument('--use_cuda', action='store_true', default=False,
                         help='flag indicating that cuda will be used')
 
     parser.add_argument('--batch_size', type=int, default=100,
@@ -240,9 +243,10 @@ if __name__ == '__main__':
 
     writer = SummaryWriter('./logs/%s_%s' % (args.model_name, str(int(time.time()))))
     if args.scheduled_teacher_forcing:
-        schedule = np.arange(1.0, 0.0, -1.0/args.epochs)
+        schedule = np.arange(1.0, 0.0, -1.0 / args.epochs)
     else:
         schedule = np.ones(args.epochs) * args.teacher_forcing_fraction
 
-    main(args.model_name, args.use_cuda, args.batch_size, schedule, args.keep_prob, args.val_size, args.lr, args.decoder_type, args.vocab_limit, args.hidden_size, args.embedding_size, args.max_length)
+    main(args.model_name, args.use_cuda, args.batch_size, schedule, args.keep_prob, args.val_size, args.lr,
+         args.decoder_type, args.vocab_limit, args.hidden_size, args.embedding_size, args.max_length)
     # main(str(int(time.time())), args.use_cuda, args.batch_size, schedule, args.keep_prob, args.val_size, args.lr, args.decoder_type, args.vocab_limit, args.hidden_size, args.embedding_size, args.max_length)

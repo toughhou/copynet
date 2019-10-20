@@ -9,13 +9,13 @@ from utils import DecoderBase
 class AttentionDecoder(DecoderBase):
     def __init__(self, hidden_size, embedding_size, lang: Language, max_length):
         super(AttentionDecoder, self).__init__()
-        self.hidden_size = hidden_size
+        self.hidden_size = hidden_size  # hidden_size: 2 * encoder.hidden_size
         self.embedding_size = embedding_size
         self.lang = lang
         self.max_length = max_length
 
         self.embedding = nn.Embedding(len(lang.tok_to_idx), self.embedding_size, padding_idx=0)
-        self.embedding.weight.data.normal_(0, 1 / self.embedding_size**0.5)
+        self.embedding.weight.data.normal_(0, 1 / self.embedding_size ** 0.5)
         self.embedding.weight.data[0, :] = 0.0
 
         self.attn_W = nn.Linear(self.hidden_size, self.hidden_size)
@@ -56,7 +56,7 @@ class AttentionDecoder(DecoderBase):
                 teacher_forcing_mask = Variable((torch.rand((batch_size, 1)) <= teacher_forcing), requires_grad=False)
                 if next(self.parameters()).is_cuda:
                     teacher_forcing_mask = teacher_forcing_mask.cuda()
-                iput = iput.masked_scatter(teacher_forcing_mask, targets[:, step_idx-1:step_idx])
+                iput = iput.masked_scatter(teacher_forcing_mask, targets[:, step_idx - 1:step_idx])
 
             output, hidden = self.step(iput, hidden, encoder_outputs, dropout_mask=dropout_mask)
 
@@ -75,26 +75,36 @@ class AttentionDecoder(DecoderBase):
         batch_size = prev_idx.shape[0]
         vocab_size = len(self.lang.tok_to_idx)
 
-        # encoder_output * W * decoder_hidden for each encoder_output
+        # Transformed Hidden: encoder_output * W * decoder_hidden for each encoder_output
         transformed_hidden = self.attn_W(prev_hidden).view(batch_size, self.hidden_size, 1)
-        scores = torch.bmm(encoder_outputs, transformed_hidden).squeeze(2)  # reduce encoder outputs and hidden to get scores. remove singleton dimension from multiplication.
+
+        # Attention: reduce encoder outputs and hidden to get scores. remove singleton dimension from multiplication.
+        scores = torch.bmm(encoder_outputs, transformed_hidden).squeeze(2)
         attn_weights = F.softmax(scores, dim=1).unsqueeze(1)  # apply softmax to scores to get normalized weights
+
+        # Context Vector
         context = torch.bmm(attn_weights, encoder_outputs)  # weighted sum of encoder_outputs (i.e. values)
 
+        # Mask Copied Tokens
         out_of_vocab_mask = prev_idx > vocab_size  # [b, 1] bools indicating which seqs copied on the previous step
         unks = torch.ones_like(prev_idx).long() * 3
-        prev_idx = prev_idx.masked_scatter(out_of_vocab_mask, unks)  # replace copied tokens with <UNK> token before embedding
+        # replace copied tokens with <UNK> token before embedding
+        prev_idx = prev_idx.masked_scatter(out_of_vocab_mask, unks)
 
+        # Embed
         embedded = self.embedding(prev_idx)  # embed input (i.e. previous output token)
 
+        # Attentional Vector: context vector + pre_hidden
         rnn_input = torch.cat((context, embedded), dim=2)
         if dropout_mask is not None:
             if next(self.parameters()).is_cuda:
                 dropout_mask = dropout_mask.cuda()
             rnn_input *= dropout_mask
 
+        # GRU
         output, hidden = self.gru(rnn_input, prev_hidden)
 
+        # Prediction
         output = self.out(output.squeeze(1))  # linear transformation to output size
         output = F.log_softmax(output, dim=1)  # log softmax non-linearity to convert to log probabilities
 
